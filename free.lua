@@ -1,6 +1,6 @@
 --[[  
     VortX Hub V1.6.0 - HyperShot Gunfight Edition
-    Script restructured to include all requested features while maintaining original UI
+    Enhanced Silent Aim and improved functionality
 ]]
 
 -- Load Orion Library
@@ -38,7 +38,8 @@ local Settings = {
             Enabled = false,
             HitChance = 100,
             IsTargeting = false,
-            Target = nil
+            Target = nil,
+            hi = true
         }
     },
     Visuals = {
@@ -238,48 +239,45 @@ local function ToggleHitboxExpander(enabled)
     end
 end
 
--- Silent Aim
+-- Enhanced Silent Aim
 local SilentAim = Settings.Combat.SilentAim
 local originalHook
 
 local function ToggleSilentAim(enabled)
     if enabled then
-        originalHook = hookmetamethod(game, "__namecall", function(self, ...)
-            local method = getnamecallmethod()
-            local args = { ... }
-
-            if not checkcaller() and self == Workspace and method == "Raycast" and
-                SilentAim.Enabled and SilentAim.IsTargeting and SilentAim.Target then
-
+        originalHook = hookmetamethod(game, "__namecall", function(s, ...)
+            local m = getnamecallmethod()
+            local a = {...}
+            if not checkcaller() and s == workspace and m == "Raycast" and SilentAim.Enabled and SilentAim.IsTargeting and SilentAim.Target then
                 if math.random(1, 100) > SilentAim.HitChance then
-                    return namecall(self, ...)
+                    return namecall(s, ...)
                 end
-
-                local raycastParams = args[1]
-                local targetPosition = SilentAim.Target.Position
-
-                local fakeResult = {
-                    Instance = SilentAim.Target,
-                    Position = targetPosition,
-                    Normal = Vector3.new(0, 1, 0),
-                    Material = Enum.Material.Plastic,
-                    Distance = (targetPosition - raycastParams.Origin).Magnitude
-                }
-
-                local proxyResult = {}
-                setmetatable(proxyResult, {
-                    __index = function(_, key)
-                        if key == "Distance" then return fakeResult.Distance end
-                        if key == "Position" then return fakeResult.Position end
-                        if key == "Instance" then return fakeResult.Instance end
-                        return fakeResult[key]
-                    end
-                })
-
-                return proxyResult
+                local r = a[1]
+                local t = SilentAim.Target.Position
+                if SilentAim.hi then
+                    local f = {}
+                    f.Instance = SilentAim.Target
+                    f.Position = t
+                    f.Normal = Vector3.new(0, 1, 0)
+                    f.Material = Enum.Material.Plastic
+                    f.Distance = (t - r).Magnitude
+                    local p = {}
+                    setmetatable(p, {
+                        __index = function(_, k)
+                            if k == "Distance" then return f.Distance end
+                            if k == "Position" then return f.Position end
+                            if k == "Instance" then return f.Instance end
+                            return f[k]
+                        end
+                    })
+                    return p
+                else
+                    local d = (t - r).Unit * 1000
+                    a[2] = d
+                    return namecall(s, unpack(a))
+                end
             end
-
-            return namecall(self, ...)
+            return namecall(s, ...)
         end)
     else
         if originalHook then
@@ -359,7 +357,7 @@ local function SetupFarmingToggles()
         end
         task.wait(0.3)
     end)
-end
+}
 
 -- UI Setup
 local Window = OrionLib:MakeWindow({
@@ -582,6 +580,10 @@ Tabs.Settings:AddButton({
         OrionLib:Destroy()
         for _, loop in pairs(FarmingLoops) do
             loop = false
+        end
+        if originalHook then
+            hookmetamethod(game, "__namecall", originalHook)
+            originalHook = nil
         end
         Notify("VortX Hub", "Unloaded safely.", 3)
     end
