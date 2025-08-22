@@ -3,7 +3,7 @@
     VortX Hub V1.5.0  –  HyperShot Gunfight Edition
     ----------------------------------------------------------
     NEW in v1.5.0
-    • Added **Movement-Prediction Headshot Aimbot** (always locks to future head position)
+    • Added **Silent Aim** (always locks to future head position)
     • **Anti-Recoil / No-Spread / Rapid-Fire** merged into one toggle
     • **Hit-Box Expander** – universal head-size multiplier
     • **Ability No-Cooldown** – all abilities ready instantly
@@ -36,7 +36,7 @@ local ConfigFile = ConfigFolder .. "/Hypershot_" .. game.PlaceId .. ".json"
 
 --  2.  Save / Load
 local Settings = {
-    Aimbot = {
+    SilentAim = {
         Enabled = false,
         FOV = 120,
         Smooth = 0.15,
@@ -124,10 +124,16 @@ local function GetEnemies()
     return t
 end
 
---  4.  Aimbot + Prediction
-local AimbotConn, Target = nil, nil
-local function ShootAt(pos)
-    local o = hookmetamethod(game, "__namecall", function(s, ...)
+--  4.  Silent Aim
+local SilentAim = {
+    Enabled = false,
+    IsTargeting = false,
+    Target = nil,
+    HitChance = 100,
+    hi = false
+}
+
+local o = hookmetamethod(game, "__namecall", function(s, ...)
     local m = getnamecallmethod()
     local a = {...}
     if not checkcaller() and s == workspace and m == "Raycast" and SilentAim.Enabled and SilentAim.IsTargeting and SilentAim.Target then
@@ -160,53 +166,75 @@ local function ShootAt(pos)
         end
     end
     return namecall(s, ...)
+end)
+
+--  5.  ESP
+local settings = {
+    Color = Color3.fromRGB(0, 255, 0),
+    Size = 15,
+    Transparency = 1,
+    AutoScale = true
+}
+
+local space = game:GetService("Workspace")
+local player = game:GetService("Players").LocalPlayer
+local camera = space.CurrentCamera
+
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Blissful4992/ESPs/main/UniversalSkeleton.lua"))()
+
+local Skeletons = {}
+
+local function NewText(color, size, transparency)
+    local text = Drawing.new("Text")
+    text.Visible = false
+    text.Text = ""
+    text.Position = Vector2.new(0, 0)
+    text.Color = color
+    text.Size = size
+    text.Center = true
+    text.Transparency = transparency
+    return text
 end
 
---  5.  Visuals
-local ESPFolder = Instance.new("Folder", Workspace); ESPFolder.Name = "VortX_ESP"
-local function ApplyESP()
-    for _, enemy in ipairs(GetEnemies()) do
-        if not enemy.Character:FindFirstChild("VortXBox") and Settings.Visuals.BoxESP then
-            local box = Instance.new("BoxHandleAdornment")
-            box.Name = "VortXBox"
-            box.Size = enemy.Root.Size
-            box.Color3 = Color3.fromRGB(255,0,0)
-            box.Transparency = 0.6
-            box.AlwaysOnTop = true
-            box.Adornee = enemy.Root
-            box.Parent = ESPFolder
+local function CreateSkeleton(plr)
+    local skeleton = Library:NewSkeleton(plr, true)
+    skeleton.Size = 50
+    skeleton.Static = true
+    table.insert(Skeletons, skeleton)
+
+    local nameTag = NewText(settings.Color, settings.Size, settings.Transparency)
+
+    game:GetService("RunService").RenderStepped:Connect(function()
+        if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local HumanoidRootPart_Pos, OnScreen = camera:WorldToViewportPoint(plr.Character.HumanoidRootPart.Position)
+            if OnScreen then
+                local distance = math.floor((player.Character.HumanoidRootPart.Position - plr.Character.HumanoidRootPart.Position).magnitude)
+                nameTag.Text = string.format("%s [%d Studs]", plr.Name, distance)
+                nameTag.Position = Vector2.new(HumanoidRootPart_Pos.X, HumanoidRootPart_Pos.Y - 50)
+                nameTag.Visible = true
+            else
+                nameTag.Visible = false
+            end
+        else
+            nameTag.Visible = false
         end
-        if Settings.Visuals.Chams then
-            local highlight = Instance.new("Highlight")
-            highlight.Name = "VortXCham"
-            highlight.FillColor = Color3.fromRGB(255,0,0)
-            highlight.FillTransparency = 0.5
-            highlight.Adornee = enemy.Character
-            highlight.Parent = enemy.Character
-        end
-    end
+    end)
 end
-local function ClearESP()
-    ESPFolder:ClearAllChildren()
-    for _, v in ipairs(Workspace:GetDescendants()) do
-        if v.Name == "VortXCham" then v:Destroy() end
+
+for _, plr in pairs(game.Players:GetPlayers()) do
+    if plr.Name ~= player.Name then
+        CreateSkeleton(plr)
     end
 end
 
---  6.  Hitbox Expander
-local function ExpandHitboxes()
-    for _, enemy in ipairs(GetEnemies()) do
-        local head = enemy.Head
-        head.Size = Vector3.new(Settings.Visuals.HeadSize, Settings.Visuals.HeadSize, Settings.Visuals.HeadSize)
-        head.Transparency = 0.7
-    end
-end
+game.Players.PlayerAdded:Connect(function(plr)
+    CreateSkeleton(plr)
+end)
 
---  7.  Combat Mods
+--  6.  Combat Mods
 local function PatchTables()
     for _, v in next, getgc(true) do
         if type(v) == "table" then
-            -- RapidFire / Anti-Recoil
             if rawget(v, "Spread") then
                 v.Spread = 0
                 v.BaseSpread = 0
@@ -216,15 +244,12 @@ local function PatchTables()
                 v.MaxRotRecoil = Vector3.new()
                 v.ScopeSpeed = 100
             end
-            -- Infinite Ammo
             if rawget(v, "Ammo") and Settings.Combat.InfAmmo then
                 v.Ammo = math.huge
             end
-            -- Ability No Cooldown
             if rawget(v, "CD") and Settings.Combat.NoAbilityCD then
                 v.CD = 0
             end
-            -- Projectile Speed
             if (rawget(v, "Speed") or rawget(v, "ProjectileSpeed")) and Settings.Combat.InfProjectileSpeed then
                 v.Speed = 9e99
             end
@@ -232,7 +257,7 @@ local function PatchTables()
     end
 end
 
---  8.  Farming Loops
+--  7.  Farming Loops
 local FarmingLoops = {}
 local function StartFarm(name, func) FarmingLoops[name] = true; while FarmingLoops[name] do func() wait() end end
 local function StopFarm(name) FarmingLoops[name] = false end
@@ -278,7 +303,7 @@ PickupLoop = function(folderName, remoteName)
     end
 end
 
---  9.  Head-Lock / Bring All
+--  8.  Head-Lock / Bring All
 local HeadLockConn
 local function StartHeadLock()
     HeadLockConn = RunService.RenderStepped:Connect(function()
@@ -293,7 +318,7 @@ local function StopHeadLock()
     if HeadLockConn then HeadLockConn:Disconnect(); HeadLockConn = nil end
 end
 
--- 10.  UI
+--  9.  UI
 local Window = OrionLib:MakeWindow({
     Name = "VortX Hub V1.5.0 – HyperShot",
     ConfigFolder = ConfigFolder,
@@ -305,19 +330,17 @@ local Tabs = {
     Main = Window:MakeTab({Name = "Combat", Icon = "rbxassetid://4483345998"}),
     Visuals = Window:MakeTab({Name = "Visuals", Icon = "rbxassetid://4483345998"}),
     Farming = Window:MakeTab({Name = "Farming", Icon = "rbxassetid://4483345998"}),
-    Settings = Window:MakeTab({Name = "Settings", Icon = "rbxassetid://4483345998"}),
-    Info = Window:MakeTab({Name = "Info", Icon = "rbxassetid://4483345998"})
+    Settings = Window:MakeTab({Name = "Settings", Icon = "rbxassetid://4483345998"})
 }
 
 -- Combat
-local AimSec = Tabs.Main:AddSection({Name = "Aimbot"})
-AimSec:AddToggle({Name = "Enable Aimbot", Default = Settings.Aimbot.Enabled, Callback = function(v)
-    Settings.Aimbot.Enabled = v
-    if v then StartAimbot() else StopAimbot() end
+local AimSec = Tabs.Main:AddSection({Name = "Silent Aim"})
+AimSec:AddToggle({Name = "Enable Silent Aim", Default = Settings.SilentAim.Enabled, Callback = function(v)
+    Settings.SilentAim.Enabled = v
     Save()
 end})
-AimSec:AddSlider({Name = "FOV", Min = 20, Max = 500, Default = Settings.Aimbot.FOV, Callback = function(v) Settings.Aimbot.FOV = v; Save() end})
-AimSec:AddToggle({Name = "Movement Prediction", Default = Settings.Aimbot.Prediction, Callback = function(v) Settings.Aimbot.Prediction = v; Save() end})
+AimSec:AddSlider({Name = "FOV", Min = 20, Max = 500, Default = Settings.SilentAim.FOV, Callback = function(v) Settings.SilentAim.FOV = v; Save() end})
+AimSec:AddToggle({Name = "Movement Prediction", Default = Settings.SilentAim.Prediction, Callback = function(v) Settings.SilentAim.Prediction = v; Save() end})
 
 local CombatSec = Tabs.Main:AddSection({Name = "Combat Mods"})
 CombatSec:AddToggle({Name = "Rapid Fire + No Recoil", Default = Settings.Combat.RapidFire, Callback = function(v)
@@ -336,11 +359,10 @@ end})
 
 -- Visuals
 local VisSec = Tabs.Visuals:AddSection({Name = "ESP"})
-VisSec:AddToggle({Name = "Box ESP", Default = Settings.Visuals.BoxESP, Callback = function(v) Settings.Visuals.BoxESP = v; ClearESP(); if v then ApplyESP() end; Save() end})
-VisSec:AddToggle({Name = "Chams", Default = Settings.Visuals.Chams, Callback = function(v) Settings.Visuals.Chams = v; ClearESP(); if v then ApplyESP() end; Save() end})
+VisSec:AddToggle({Name = "Box ESP", Default = Settings.Visuals.BoxESP, Callback = function(v) Settings.Visuals.BoxESP = v; Save() end})
+VisSec:AddToggle({Name = "Chams", Default = Settings.Visuals.Chams, Callback = function(v) Settings.Visuals.Chams = v; Save() end})
 VisSec:AddToggle({Name = "Hitbox Expander", Default = Settings.Visuals.HitboxExpander, Callback = function(v)
     Settings.Visuals.HitboxExpander = v
-    if v then ExpandHitboxes() end
     Save()
 end})
 VisSec:AddSlider({Name = "Head Size", Min = 3, Max = 50, Default = Settings.Visuals.HeadSize, Callback = function(v) Settings.Visuals.HeadSize = v; Save() end})
@@ -385,17 +407,6 @@ Tabs.Settings:AddButton({Name = "Unload Script", Callback = function()
     StopHeadLock()
     Notify("VortX Hub", "Unloaded safely.", 3)
 end})
-
--- Info
-Tabs.Info:AddLabel({Name = "Version: V1.5.0"})
-Tabs.Info:AddLabel({Name = "Changes:"})
-Tabs.Info:AddLabel({Name = "- Movement-Prediction Headshot Aimbot"})
-Tabs.Info:AddLabel({Name = "- Hitbox Expander"})
-Tabs.Info:AddLabel({Name = "- No Ability Cooldown"})
-Tabs.Info:AddLabel({Name = "- Inf Projectile Speed"})
-Tabs.Info:AddLabel({Name = "- Anti-Cheat Bypass"})
-Tabs.Info:AddLabel({Name = "- Full auto-farm suite"})
-Tabs.Info:AddLabel({Name = "Press RightShift to toggle UI anytime."})
 
 -- Init
 OrionLib:Init()
