@@ -21,6 +21,42 @@ local ConfigFolder = "VortXConfigs"
 if not isfolder(ConfigFolder) then makefolder(ConfigFolder) end
 local ConfigFile = ConfigFolder .. "/Hypershot_" .. game.PlaceId .. ".json"
 
+-- ESP Settings
+local ESP_Settings = {
+    Color = Color3.fromRGB(0, 255, 0),
+    Size = 15,
+    Transparency = 1,
+}
+
+-- Skeleton ESP Code
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Blissful4992/ESPs/main/UniversalSkeleton.lua"))()
+local Skeletons = {}
+
+local function CreateSkeleton(plr)
+    local skeleton = Library:NewSkeleton(plr, true)
+    skeleton.Size = 50
+    skeleton.Static = true
+    table.insert(Skeletons, skeleton)
+end
+
+local function ToggleSkeletons(enabled)
+    if enabled then
+        for _, plr in pairs(game.Players:GetPlayers()) do
+            if plr.Name ~= LocalPlayer.Name then
+                CreateSkeleton(plr)
+            end
+        end
+        game.Players.PlayerAdded:Connect(function(plr)
+            CreateSkeleton(plr)
+        end)
+    else
+        for _, skeleton in pairs(Skeletons) do
+            skeleton:Remove()
+        end
+        Skeletons = {}
+    end
+end
+
 -- Settings Table
 local Settings = {
     Combat = {
@@ -38,7 +74,7 @@ local Settings = {
         }
     },
     Visuals = {
-        UniversalESP = false,
+        SkeletonESP = false,
         RainbowBullet = false,
         HitboxExpander = false,
         HeadSize = 20
@@ -125,9 +161,6 @@ local function ToggleSilentAim(enabled)
         end
     end
 end
-
--- Load Universal ESP
-local ESP_UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/zzerexx/scripts/main/UniversalEspUI.lua"))()
 
 -- Rainbow Bullet
 local function ToggleRainbowBullet(enabled)
@@ -343,10 +376,11 @@ CombatSection:AddToggle({
 local VisualsSection = Tabs.Visuals:AddSection({Name = "Visuals"})
 
 VisualsSection:AddToggle({
-    Name = "Universal ESP",
-    Default = Settings.Visuals.UniversalESP,
+    Name = "Skeleton ESP",
+    Default = Settings.Visuals.SkeletonESP,
     Callback = function(value)
-        Settings.Visuals.UniversalESP = value
+        Settings.Visuals.SkeletonESP = value
+        ToggleSkeletons(value)
         SaveConfig()
     end
 })
@@ -476,6 +510,10 @@ Tabs.Settings:AddButton({
             hookmetamethod(game, "__namecall", originalHook)
             originalHook = nil
         end
+        for _, skeleton in pairs(Skeletons) do
+            skeleton:Remove()
+        end
+        Skeletons = {}
         Notify("VortX Hub", "Unloaded safely.", 3)
     end
 })
@@ -483,4 +521,6 @@ Tabs.Settings:AddButton({
 -- Initialize
 LoadConfig()
 OrionLib:Init()
+ToggleSkeletons(Settings.Visuals.SkeletonESP)
+ToggleRainbowBullet(Settings.Visuals.RainbowBullet)
 Notify("VortX Hub V1.7.0", "Loaded successfully! Enjoy the game.", 5)
