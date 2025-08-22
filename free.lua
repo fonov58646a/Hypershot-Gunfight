@@ -9,7 +9,7 @@ local function LoadOrion()
         OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/1nig1htmare1234/SCRIPTS/main/Orion.lua"))()
     end)
     if not OrionLib then
-        warn("OrionLib failed to load. Please check your internet connection or try again later.")
+        warn("OrionLib failed to load. GUI features are disabled.")
     end
 end
 LoadOrion()
