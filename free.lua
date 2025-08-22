@@ -1,6 +1,5 @@
 --[[  
     VortX Hub V1.6.0 - HyperShot Gunfight Edition
-    Enhanced Silent Aim and improved functionality
 ]]
 
 -- Load Orion Library
@@ -28,7 +27,6 @@ local ConfigFile = ConfigFolder .. "/Hypershot_" .. game.PlaceId .. ".json"
 -- Settings Table
 local Settings = {
     Combat = {
-        KillAll = false,
         RapidFire = false,
         NoRecoil = false,
         InfAmmo = false,
@@ -80,22 +78,6 @@ end
 
 local function Notify(title, text, duration)
     OrionLib:MakeNotification({Name = title, Content = text, Time = duration or 5})
-end
-
--- Kill-All Functionality
-local function ToggleKillAll(enabled)
-    if enabled then
-        task.spawn(function()
-            while Settings.Combat.KillAll do
-                for _, player in ipairs(Players:GetPlayers()) do
-                    if player ~= LocalPlayer then
-                        Remotes.PlayerHitEvent:FireServer(player, 100)
-                    end
-                end
-                task.wait(0.1)
-            end
-        end)
-    end
 end
 
 -- Universal ESP
@@ -362,16 +344,6 @@ local Tabs = {
 
 -- Combat Tab
 local CombatSection = Tabs.Combat:AddSection({ Name = "Combat" })
-
-CombatSection:AddToggle({
-    Name = "Kill-All (FFA)",
-    Default = Settings.Combat.KillAll,
-    Callback = function(value)
-        Settings.Combat.KillAll = value
-        ToggleKillAll(value)
-        SaveConfig()
-    end
-})
 
 CombatSection:AddToggle({
     Name = "Silent Aim",
