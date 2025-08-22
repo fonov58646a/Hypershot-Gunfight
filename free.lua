@@ -1,7 +1,20 @@
 -- ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 -- VORTEX HUB V2.9 | ULTIMATE EDITION
 -- ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
-local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/1nig1htmare1234/SCRIPTS/main/Orion.lua"))()
+
+-- Load OrionLib
+local OrionLib = nil
+local function LoadOrion()
+    pcall(function()
+        OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/1nig1htmare1234/SCRIPTS/main/Orion.lua"))()
+    end)
+    if not OrionLib then
+        warn("OrionLib failed to load. Please check your internet connection or try again later.")
+    end
+end
+LoadOrion()
+
+-- Services
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -14,10 +27,6 @@ local Mouse = LocalPlayer:GetMouse()
 local Remotes = ReplicatedStorage:WaitForChild("Network"):WaitForChild("Remotes")
 local IgnoreThese = Workspace:WaitForChild("IgnoreThese")
 local Pickups = IgnoreThese:WaitForChild("Pickups")
-
-local ConfigFolder = "VortXConfigs"
-if not isfolder(ConfigFolder) then makefolder(ConfigFolder) end
-local ConfigFile = ConfigFolder .. "/Hypershot_" .. game.PlaceId .. ".json"
 
 -- Global Settings
 local Settings = {
@@ -59,11 +68,15 @@ local Settings = {
 }
 
 -- Save / Load Functions
+local ConfigFolder = "VortXConfigs"
+if not isfolder(ConfigFolder) then makefolder(ConfigFolder) end
+local ConfigFile = ConfigFolder .. "/Hypershot_" .. game.PlaceId .. ".json"
+
 local function Save()
     writefile(ConfigFile, game:GetService("HttpService"):JSONEncode(Settings))
 end
 
-local function Load()
+local function LoadConfig()
     if isfile(ConfigFile) then
         local ok, data = pcall(function() return game:GetService("HttpService"):JSONDecode(readfile(ConfigFile)) end)
         if ok then
@@ -74,11 +87,15 @@ local function Load()
     end
 end
 
-Load()
+LoadConfig()
 
 -- Notification Function
 local function Notify(Title, Text, Time)
-    OrionLib:MakeNotification({Name = Title, Content = Text, Time = Time or 5})
+    if OrionLib then
+        OrionLib:MakeNotification({Name = Title, Content = Text, Time = Time or 5})
+    else
+        warn(Text)
+    end
 end
 
 -- Get Enemies Function
@@ -230,13 +247,14 @@ local function ApplyRainbowBullets()
                 colorIndex = colorIndex % #colors + 1
                 return colors[colorIndex]
             end
-            rawset(v, "Color", cycleColor())
+            v.Color = cycleColor()
         end
     end
 end
 
 -- Combat Mods
 local function PatchTables()
+    if not Settings.Combat.RapidFire then return end
     for _, v in ipairs(getgc(true)) do
         if type(v) == "table" then
             -- Rapid Fire / No Recoil
@@ -332,130 +350,160 @@ local function StopHeadLock()
 end
 
 -- UI
-local Window = OrionLib:MakeWindow({
-    Name = "VortX Hub V2.9 – HyperShot",
-    ConfigFolder = ConfigFolder,
-    SaveConfig = true,
-    HidePremium = true
-})
+if OrionLib then
+    local Window = OrionLib:MakeWindow({
+        Name = "VortX Hub V2.9 – HyperShot",
+        ConfigFolder = ConfigFolder,
+        SaveConfig = true,
+        HidePremium = true
+    })
 
-local Tabs = {
-    Main = Window:MakeTab({Name = "Combat", Icon = "rbxassetid://4483345998"}),
-    Visuals = Window:MakeTab({Name = "Visuals", Icon = "rbxassetid://4483345998"}),
-    Farming = Window:MakeTab({Name = "Farming", Icon = "rbxassetid://4483345998"}),
-    Settings = Window:MakeTab({Name = "Settings", Icon = "rbxassetid://4483345998"}),
-    Info = Window:MakeTab({Name = "Info", Icon = "rbxassetid://4483345998"})
-}
+    local Tabs = {
+        Main = Window:MakeTab({Name = "Combat", Icon = "rbxassetid://4483345998"}),
+        Visuals = Window:MakeTab({Name = "Visuals", Icon = "rbxassetid://4483345998"}),
+        Farming = Window:MakeTab({Name = "Farming", Icon = "rbxassetid://4483345998"}),
+        Settings = Window:MakeTab({Name = "Settings", Icon = "rbxassetid://4483345998"}),
+        Info = Window:MakeTab({Name = "Info", Icon = "rbxassetid://4483345998"})
+    }
 
--- Combat
-local AimSec = Tabs.Main:AddSection({Name = "Silent Aim"})
-AimSec:AddToggle({Name = "Enable Silent Aim", Default = Settings.Aimbot.Enabled, Callback = function(v)
-    Settings.Aimbot.Enabled = v
-    Save()
-end})
-AimSec:AddSlider({Name = "Hit Chance", Min = 1, Max = 100, Default = Settings.Aimbot.HitChance, Callback = function(v) Settings.Aimbot.HitChance = v; Save() end})
-AimSec:AddToggle({Name = "Hitbox Mode", Default = Settings.Aimbot.hi, Callback = function(v) Settings.Aimbot.hi = v; Save() end})
+    -- Combat
+    local AimSec = Tabs.Main:AddSection({Name = "Silent Aim"})
+    AimSec:AddToggle({Name = "Enable Silent Aim", Default = Settings.Aimbot.Enabled, Callback = function(v)
+        Settings.Aimbot.Enabled = v
+        Save()
+    end})
+    AimSec:AddSlider({Name = "Hit Chance", Min = 1, Max = 100, Default = Settings.Aimbot.HitChance, Callback = function(v) Settings.Aimbot.HitChance = v; Save() end})
+    AimSec:AddToggle({Name = "Hitbox Mode", Default = Settings.Aimbot.hi, Callback = function(v) Settings.Aimbot.hi = v; Save() end})
 
-local CombatSec = Tabs.Main:AddSection({Name = "Combat Mods"})
-CombatSec:AddToggle({Name = "Rapid Fire + No Recoil", Default = Settings.Combat.RapidFire, Callback = function(v)
-    Settings.Combat.RapidFire = v
-    if v then PatchTables() end
-    Save()
-end})
-CombatSec:AddToggle({Name = "Infinite Ammo", Default = Settings.Combat.InfAmmo, Callback = function(v) Settings.Combat.InfAmmo = v; Save(); PatchTables() end})
-CombatSec:AddToggle({Name = "No Ability Cooldown", Default = Settings.Combat.NoAbilityCD, Callback = function(v) Settings.Combat.NoAbilityCD = v; Save(); PatchTables() end})
-CombatSec:AddToggle({Name = "Inf Projectile Speed", Default = Settings.Combat.InfProjectileSpeed, Callback = function(v) Settings.Combat.InfProjectileSpeed = v; Save(); PatchTables() end})
-CombatSec:AddToggle({Name = "Bring All / Head-Lock", Default = Settings.Misc.HeadLock, Callback = function(v)
-    Settings.Misc.HeadLock = v
-    if v then StartHeadLock() else StopHeadLock() end
-    Save()
-end})
+    local CombatSec = Tabs.Main:AddSection({Name = "Combat Mods"})
+    CombatSec:AddToggle({Name = "Rapid Fire + No Recoil", Default = Settings.Combat.RapidFire, Callback = function(v)
+        Settings.Combat.RapidFire = v
+        PatchTables()
+        Save()
+    end})
+    CombatSec:AddToggle({Name = "Infinite Ammo", Default = Settings.Combat.InfAmmo, Callback = function(v) Settings.Combat.InfAmmo = v; Save(); PatchTables() end})
+    CombatSec:AddToggle({Name = "No Ability Cooldown", Default = Settings.Combat.NoAbilityCD, Callback = function(v) Settings.Combat.NoAbilityCD = v; Save(); PatchTables() end})
+    CombatSec:AddToggle({Name = "Inf Projectile Speed", Default = Settings.Combat.InfProjectileSpeed, Callback = function(v) Settings.Combat.InfProjectileSpeed = v; Save(); PatchTables() end})
+    CombatSec:AddToggle({Name = "Bring All / Head-Lock", Default = Settings.Misc.HeadLock, Callback = function(v)
+        Settings.Misc.HeadLock = v
+        if v then StartHeadLock() else StopHeadLock() end
+        Save()
+    end})
 
--- Visuals
-local VisSec = Tabs.Visuals:AddSection({Name = "ESP"})
-VisSec:AddToggle({Name = "Enable ESP", Default = Settings.ESP.Enabled, Callback = function(v)
-    Settings.ESP.Enabled = v
-    if v then
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer then
-                CreateESPBox(player)
+    -- Visuals
+    local VisSec = Tabs.Visuals:AddSection({Name = "ESP"})
+    VisSec:AddToggle({Name = "Enable ESP", Default = Settings.ESP.Enabled, Callback = function(v)
+        Settings.ESP.Enabled = v
+        if v then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer then
+                    CreateESPBox(player)
+                end
             end
+        else
+            for _, drawing in ipairs(Drawings) do
+                drawing[1]:Remove()
+                drawing[2]:Remove()
+            end
+            Drawings = {}
         end
-    else
+        Save()
+    end})
+    VisSec:AddColorpicker({Name = "ESP Color", Default = Settings.ESP.Color, Callback = function(v)
+        Settings.ESP.Color = v
+        for _, drawing in ipairs(Drawings) do
+            drawing[1].Color = v
+            drawing[2].Color = v
+        end
+        Save()
+    end})
+    VisSec:AddSlider({Name = "ESP Thickness", Min = 0.1, Max = 5, Default = Settings.ESP.Thickness, Callback = function(v)
+        Settings.ESP.Thickness = v
+        for _, drawing in ipairs(Drawings) do
+            drawing[1].Thickness = v
+        end
+        Save()
+    end})
+
+    local RainbowSec = Tabs.Visuals:AddSection({Name = "Rainbow Bullets"})
+    RainbowSec:AddToggle({Name = "Rainbow Bullets", Default = Settings.Misc.RainbowBullets, Callback = function(v)
+        Settings.Misc.RainbowBullets = v
+        if v then ApplyRainbowBullets() end
+        Save()
+    end})
+
+    -- Farming
+    local FarmSec = Tabs.Farming:AddSection({Name = "Auto Farm"})
+    FarmSec:AddToggle({Name = "Auto Spawn", Default = Settings.Farming.AutoSpawn, Callback = function(v)
+        Settings.Farming.AutoSpawn = v
+        if v then StartFarm("AutoSpawn", SpawnLoop) else StopFarm("AutoSpawn") end
+        Save()
+    end})
+    FarmSec:AddToggle({Name = "Auto Open Chest", Default = Settings.Farming.AutoChest, Callback = function(v)
+        Settings.Farming.AutoChest = v
+        if v then StartFarm("AutoChest", ChestLoop) else StopFarm("AutoChest") end
+        Save()
+    end})
+    FarmSec:AddDropdown({Name = "Chest Type", Options = {"Wooden","Bronze","Silver","Gold","Diamond"}, Default = Settings.Farming.ChestType, Callback = function(v) Settings.Farming.ChestType = v; Save() end})
+    FarmSec:AddToggle({Name = "Auto Spin Wheel", Default = Settings.Farming.AutoSpin, Callback = function(v) Settings.Farming.AutoSpin = v; if v then StartFarm("AutoSpin", SpinLoop) else StopFarm("AutoSpin") end; Save() end})
+    FarmSec:AddToggle({Name = "Auto Playtime Award", Default = Settings.Farming.AutoPlaytime, Callback = function(v) Settings.Farming.AutoPlaytime = v; if v then StartFarm("AutoPlaytime", PlaytimeLoop) else StopFarm("AutoPlaytime") end; Save() end})
+    FarmSec:AddToggle({Name = "Auto Pickup Heal", Default = Settings.Farming.AutoHeal, Callback = function(v)
+        Settings.Farming.AutoHeal = v
+        if v then StartFarm("AutoHeal", PickupLoop("Heals", "PickUpHeal")) else StopFarm("AutoHeal") end
+        Save()
+    end})
+    FarmSec:AddToggle({Name = "Auto Pickup Coin", Default = Settings.Farming.AutoCoin, Callback = function(v)
+        Settings.Farming.AutoCoin = v
+        if v then StartFarm("AutoCoin", PickupLoop("Coins", "PickUpCoins")) else StopFarm("AutoCoin") end
+        Save()
+    end})
+    FarmSec:AddToggle({Name = "Auto Pickup Weapon", Default = Settings.Farming.AutoWeapon, Callback = function(v)
+        Settings.Farming.AutoWeapon = v
+        if v then StartFarm("AutoWeapon", PickupLoop("Weapons", "PickUpWeapons")) else StopFarm("AutoWeapon") end
+        Save()
+    end})
+
+    -- Settings
+    Tabs.Settings:AddButton({Name = "Unload Script", Callback = function()
+        OrionLib:Destroy()
+        for k in pairs(FarmingLoops) do StopFarm(k) end
         for _, drawing in ipairs(Drawings) do
             drawing[1]:Remove()
             drawing[2]:Remove()
         end
         Drawings = {}
-    end
-    Save()
-end})
-VisSec:AddColorpicker({Name = "ESP Color", Default = Settings.ESP.Color, Callback = function(v)
-    Settings.ESP.Color = v
-    for _, drawing in ipairs(Drawings) do
-        drawing[1].Color = v
-        drawing[2].Color = v
-    end
-    Save()
-end})
-VisSec:AddSlider({Name = "ESP Thickness", Min = 0.1, Max = 5, Default = Settings.ESP.Thickness, Callback = function(v)
-    Settings.ESP.Thickness = v
-    for _, drawing in ipairs(Drawings) do
-        drawing[1].Thickness = v
-    end
-    Save()
-end})
+        StopHeadLock()
+        Notify("VortX Hub", "Unloaded safely.", 3)
+    end})
 
-local RainbowSec = Tabs.Visuals:AddSection({Name = "Rainbow Bullets"})
-RainbowSec:AddToggle({Name = "Rainbow Bullets", Default = Settings.Misc.RainbowBullets, Callback = function(v)
-    Settings.Misc.RainbowBullets = v
-    if v then ApplyRainbowBullets() end
-    Save()
-end})
+    -- Info
+    Tabs.Info:AddLabel({Name = "Version: V2.9"})
+    Tabs.Info:AddLabel({Name = "Features:"})
+    Tabs.Info:AddLabel({Name = "- Silent Aim with Hitbox Prediction"})
+    Tabs.Info:AddLabel({Name = "- Custom ESP without loadstring"})
+    Tabs.Info:AddLabel({Name = "- Rainbow Bullets"})
+    Tabs.Info:AddLabel({Name = "- Improved Combat and Farming Mods"})
 
--- Farming
-local FarmSec = Tabs.Farming:AddSection({Name = "Auto Farm"})
-FarmSec:AddToggle({Name = "Auto Spawn", Default = Settings.Farming.AutoSpawn, Callback = function(v)
-    Settings.Farming.AutoSpawn = v
-    if v then StartFarm("AutoSpawn", SpawnLoop) else StopFarm("AutoSpawn") end
-    Save()
-end})
-FarmSec:AddToggle({Name = "Auto Open Chest", Default = Settings.Farming.AutoChest, Callback = function(v)
-    Settings.Farming.AutoChest = v
-    if v then StartFarm("AutoChest", ChestLoop) else StopFarm("AutoChest") end
-    Save()
-end})
-FarmSec:AddDropdown({Name = "Chest Type", Options = {"Wooden","Bronze","Silver","Gold","Diamond"}, Default = Settings.Farming.ChestType, Callback = function(v) Settings.Farming.ChestType = v; Save() end})
-FarmSec:AddToggle({Name = "Auto Spin Wheel", Default = Settings.Farming.AutoSpin, Callback = function(v) Settings.Farming.AutoSpin = v; if v then StartFarm("AutoSpin", SpinLoop) else StopFarm("AutoSpin") end; Save() end})
-FarmSec:AddToggle({Name = "Auto Playtime Award", Default = Settings.Farming.AutoPlaytime, Callback = function(v) Settings.Farming.AutoPlaytime = v; if v then StartFarm("AutoPlaytime", PlaytimeLoop) else StopFarm("AutoPlaytime") end; Save() end})
-FarmSec:AddToggle({Name = "Auto Pickup Heal", Default = Settings.Farming.AutoHeal, Callback = function(v)
-    Settings.Farming.AutoHeal = v
-    if v then StartFarm("AutoHeal", PickupLoop("Heals", "PickUpHeal")) else StopFarm("AutoHeal") end
-    Save()
-end})
-FarmSec:AddToggle({Name = "Auto Pickup Coin", Default = Settings.Farming.AutoCoin, Callback = function(v)
-    Settings.Farming.AutoCoin = v
-    if v then StartFarm("AutoCoin", PickupLoop("Coins", "PickUpCoins")) else StopFarm("AutoCoin") end
-    Save()
-end})
-FarmSec:AddToggle({Name = "Auto Pickup Weapon", Default = Settings.Farming.AutoWeapon, Callback = function(v)
-    Settings.Farming.AutoWeapon = v
-    if v then StartFarm("AutoWeapon", PickupLoop("Weapons", "PickUpWeapons")) else StopFarm("AutoWeapon") end
-    Save()
-end})
+    -- Initialize OrionLib
+    OrionLib:Init()
+else
+    warn("OrionLib could not be loaded. GUI features are disabled.")
+end
 
--- Settings
-Tabs.Settings:AddButton({Name = "Unload Script", Callback = function()
-    OrionLib:Destroy()
-    for k in pairs(FarmingLoops) do StopFarm(k) end
-    for _, drawing in ipairs(Drawings) do
-        drawing[1]:Remove()
-        drawing[2]:Remove()
+-- Initialize ESP Boxes for all players
+if Settings.ESP.Enabled then
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            CreateESPBox(player)
+        end
     end
-    Drawings = {}
-    StopHeadLock()
-    Notify("VortX Hub", "Unloaded safely.", 3)
-end})
+end
 
---Init
-OrionLib:Init()
+Players.PlayerAdded:Connect(function(player)
+    if Settings.ESP.Enabled and player ~= LocalPlayer then
+        task.wait(1)
+        CreateESPBox(player)
+    end
+end)
+
+Notify("VortX Hub V2.9", "Loaded successfully! Enjoy the game.", 5)
