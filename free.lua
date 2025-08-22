@@ -1,5 +1,5 @@
 --[[  
-    VortX Hub V1.6.0 - HyperShot Gunfight Edition
+    VortX Hub V1.7.0 - HyperShot Gunfight Edition
 ]]
 
 -- Load Orion Library
@@ -12,12 +12,9 @@ local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
--- Local Variables
 local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
 local Remotes = ReplicatedStorage:WaitForChild("Network"):WaitForChild("Remotes")
-local IgnoreThese = Workspace:WaitForChild("IgnoreThese")
-local Pickups = IgnoreThese:WaitForChild("Pickups")
+local Pickups = Workspace:WaitForChild("IgnoreThese"):WaitForChild("Pickups")
 
 -- Configuration
 local ConfigFolder = "VortXConfigs"
@@ -65,145 +62,20 @@ end
 
 local function LoadConfig()
     if isfile(ConfigFile) then
-        local success, data = pcall(function()
+        local ok, data = pcall(function()
             return game:GetService("HttpService"):JSONDecode(readfile(ConfigFile))
         end)
-        if success then
+        if ok then
             for k, v in pairs(data) do
                 Settings[k] = v
             end
         end
     end
 end
+LoadConfig()
 
 local function Notify(title, text, duration)
     OrionLib:MakeNotification({Name = title, Content = text, Time = duration or 5})
-end
-
--- Universal ESP
-local function ToggleUniversalESP(enabled)
-    if enabled then
-        task.spawn(function()
-            while Settings.Visuals.UniversalESP do
-                for _, player in ipairs(Players:GetPlayers()) do
-                    if player ~= LocalPlayer and player.Character then
-                        if not player.Character:FindFirstChild("okbruh") then
-                            local highlight = Instance.new("Highlight")
-                            highlight.Name = "okbruh"
-                            highlight.Parent = player.Character
-                            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                            highlight.FillColor = Color3.fromRGB(255, 100, 50)
-                            highlight.FillTransparency = 0.5
-                            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                            highlight.OutlineTransparency = 0
-                            highlight.Enabled = true
-                        end
-                    end
-                end
-                task.wait(1)
-            end
-        end)
-
-        Players.PlayerAdded:Connect(function(player)
-            player.CharacterAdded:Connect(function()
-                if Settings.Visuals.UniversalESP then
-                    task.spawn(function()
-                        while player.Character and not player.Character:FindFirstChild("okbruh") do
-                            for _, child in ipairs(player.Character:GetChildren()) do
-                                if child:IsA("BasePart") then
-                                    local highlight = Instance.new("Highlight")
-                                    highlight.Name = "okbruh"
-                                    highlight.Parent = player.Character
-                                    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                                    highlight.FillColor = Color3.fromRGB(255, 100, 50)
-                                    highlight.FillTransparency = 0.5
-                                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                                    highlight.OutlineTransparency = 0
-                                    highlight.Enabled = true
-                                    break
-                                end
-                            end
-                            task.wait()
-                        end
-                    end)
-                end
-            end)
-        end)
-    else
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player.Character then
-                local highlight = player.Character:FindFirstChild("okbruh")
-                if highlight then
-                    highlight:Destroy()
-                end
-            end
-        end
-    end
-end
-
--- Rainbow Bullet
-local function ToggleRainbowBullet(enabled)
-    if enabled then
-        task.spawn(function()
-            while Settings.Visuals.RainbowBullet do
-                for _, bullet in ipairs(Workspace:GetDescendants()) do
-                    if bullet:IsA("BasePart") and (bullet.Name:lower():find("bullet") or bullet.Name:lower():find("projectile")) then
-                        if not bullet:FindFirstChild("RainbowScript") then
-                            local script = Instance.new("Script")
-                            script.Name = "RainbowScript"
-                            script.Source = [[
-                                local bullet = script.Parent
-                                local hue = 0
-                                while true do
-                                    bullet.Color = Color3.fromHSV(hue % 1, 1, 1)
-                                    hue = hue + 0.005
-                                    task.wait(0.01)
-                                end
-                            ]]
-                            script.Parent = bullet
-                        end
-                    end
-                end
-                task.wait(0.5)
-            end
-        end)
-    end
-end
-
--- No Cooldown
-local function ToggleNoCooldown(enabled)
-    if enabled then
-        task.spawn(function()
-            while Settings.Combat.NoAbilityCD do
-                for _, v in next, getgc(true) do
-                    if type(v) == "table" and rawget(v, "CD") then
-                        v.CD = 0
-                    end
-                end
-                task.wait(1)
-            end
-        end)
-    end
-end
-
--- Hitbox Expander
-local function ToggleHitboxExpander(enabled)
-    if enabled then
-        task.spawn(function()
-            while Settings.Visuals.HitboxExpander do
-                for _, player in ipairs(Players:GetPlayers()) do
-                    if player ~= LocalPlayer and player.Character then
-                        local head = player.Character:FindFirstChild("Head")
-                        if head then
-                            head.Size = Vector3.new(Settings.Visuals.HeadSize, Settings.Visuals.HeadSize, Settings.Visuals.HeadSize)
-                            head.Transparency = 0.7
-                        end
-                    end
-                end
-                task.wait(0.5)
-            end
-        end)
-    end
 end
 
 -- Enhanced Silent Aim
@@ -250,6 +122,68 @@ local function ToggleSilentAim(enabled)
         if originalHook then
             hookmetamethod(game, "__namecall", originalHook)
             originalHook = nil
+        end
+    end
+end
+
+-- Load Universal ESP
+local ESP_UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/zzerexx/scripts/main/UniversalEspUI.lua"))()
+
+-- Rainbow Bullet
+local function ToggleRainbowBullet(enabled)
+    if enabled then
+        task.spawn(function()
+            while Settings.Visuals.RainbowBullet do
+                for _, bullet in ipairs(Workspace:GetDescendants()) do
+                    if bullet:IsA("BasePart") and (bullet.Name:lower():find("bullet") or bullet.Name:lower():find("projectile")) then
+                        if not bullet:FindFirstChild("RainbowScript") then
+                            local script = Instance.new("Script")
+                            script.Name = "RainbowScript"
+                            script.Source = [[
+                                local bullet = script.Parent
+                                local hue = 0
+                                while true do
+                                    bullet.Color = Color3.fromHSV(hue % 1, 1, 1)
+                                    hue = hue + 0.005
+                                    task.wait(0.01)
+                                end
+                            ]]
+                            script.Parent = bullet
+                        end
+                    end
+                end
+                task.wait(0.5)
+            end
+        end)
+    end
+end
+
+-- Remake No Cooldown and Rapid Fire
+local function PatchTables()
+    for _, v in next, getgc(true) do
+        if type(v) == "table" then
+            -- RapidFire / Anti-Recoil
+            if rawget(v, "Spread") then
+                v.Spread = 0
+                v.BaseSpread = 0
+                v.MinCamRecoil = Vector3.new()
+                v.MaxCamRecoil = Vector3.new()
+                v.MinRotRecoil = Vector3.new()
+                v.MaxRotRecoil = Vector3.new()
+                v.ScopeSpeed = 100
+            end
+            -- Infinite Ammo
+            if rawget(v, "Ammo") and Settings.Combat.InfAmmo then
+                v.Ammo = math.huge
+            end
+            -- Ability No Cooldown
+            if rawget(v, "CD") and Settings.Combat.NoAbilityCD then
+                v.CD = 0
+            end
+            -- Projectile Speed
+            if (rawget(v, "Speed") or rawget(v, "ProjectileSpeed")) and Settings.Combat.InfProjectileSpeed then
+                v.Speed = 9e99
+            end
         end
     end
 end
@@ -324,26 +258,25 @@ local function SetupFarmingToggles()
         end
         task.wait(0.3)
     end)
-}
+end
 
 -- UI Setup
 local Window = OrionLib:MakeWindow({
-    Name = "VortX Hub V1.6.0 - HyperShot",
+    Name = "VortX Hub V1.7.0 - HyperShot",
     ConfigFolder = ConfigFolder,
     SaveConfig = true,
     HidePremium = true
 })
 
--- Tabs
 local Tabs = {
-    Combat = Window:MakeTab({ Name = "Combat", Icon = "rbxassetid://4483345998" }),
-    Visuals = Window:MakeTab({ Name = "Visuals", Icon = "rbxassetid://4483345998" }),
-    Farming = Window:MakeTab({ Name = "Farming", Icon = "rbxassetid://4483345998" }),
-    Settings = Window:MakeTab({ Name = "Settings", Icon = "rbxassetid://4483345998" })
+    Combat = Window:MakeTab({Name = "Combat", Icon = "rbxassetid://4483345998"}),
+    Visuals = Window:MakeTab({Name = "Visuals", Icon = "rbxassetid://4483345998"}),
+    Farming = Window:MakeTab({Name = "Farming", Icon = "rbxassetid://4483345998"}),
+    Settings = Window:MakeTab({Name = "Settings", Icon = "rbxassetid://4483345998"})
 }
 
 -- Combat Tab
-local CombatSection = Tabs.Combat:AddSection({ Name = "Combat" })
+local CombatSection = Tabs.Combat:AddSection({Name = "Combat"})
 
 CombatSection:AddToggle({
     Name = "Silent Aim",
@@ -367,10 +300,11 @@ CombatSection:AddSlider({
 })
 
 CombatSection:AddToggle({
-    Name = "No Recoil / Rapid-Fire",
+    Name = "Rapid Fire + No Recoil",
     Default = Settings.Combat.RapidFire,
     Callback = function(value)
         Settings.Combat.RapidFire = value
+        if value then PatchTables() end
         SaveConfig()
     end
 })
@@ -381,6 +315,7 @@ CombatSection:AddToggle({
     Callback = function(value)
         Settings.Combat.InfAmmo = value
         SaveConfig()
+        PatchTables()
     end
 })
 
@@ -389,8 +324,8 @@ CombatSection:AddToggle({
     Default = Settings.Combat.NoAbilityCD,
     Callback = function(value)
         Settings.Combat.NoAbilityCD = value
-        ToggleNoCooldown(value)
         SaveConfig()
+        PatchTables()
     end
 })
 
@@ -400,18 +335,18 @@ CombatSection:AddToggle({
     Callback = function(value)
         Settings.Combat.InfProjectileSpeed = value
         SaveConfig()
+        PatchTables()
     end
 })
 
 -- Visuals Tab
-local VisualsSection = Tabs.Visuals:AddSection({ Name = "Visuals" })
+local VisualsSection = Tabs.Visuals:AddSection({Name = "Visuals"})
 
 VisualsSection:AddToggle({
     Name = "Universal ESP",
     Default = Settings.Visuals.UniversalESP,
     Callback = function(value)
         Settings.Visuals.UniversalESP = value
-        ToggleUniversalESP(value)
         SaveConfig()
     end
 })
@@ -431,7 +366,6 @@ VisualsSection:AddToggle({
     Default = Settings.Visuals.HitboxExpander,
     Callback = function(value)
         Settings.Visuals.HitboxExpander = value
-        ToggleHitboxExpander(value)
         SaveConfig()
     end
 })
@@ -448,7 +382,7 @@ VisualsSection:AddSlider({
 })
 
 -- Farming Tab
-local FarmingSection = Tabs.Farming:AddSection({ Name = "Auto Farm" })
+local FarmingSection = Tabs.Farming:AddSection({Name = "Auto Farm"})
 
 FarmingSection:AddToggle({
     Name = "Auto Spawn",
@@ -472,7 +406,7 @@ FarmingSection:AddToggle({
 
 FarmingSection:AddDropdown({
     Name = "Chest Type",
-    Options = { "Wooden", "Bronze", "Silver", "Gold", "Diamond" },
+    Options = {"Wooden", "Bronze", "Silver", "Gold", "Diamond"},
     Default = Settings.Farming.ChestType,
     Callback = function(value)
         Settings.Farming.ChestType = value
@@ -535,8 +469,8 @@ Tabs.Settings:AddButton({
     Name = "Unload Script",
     Callback = function()
         OrionLib:Destroy()
-        for _, loop in pairs(FarmingLoops) do
-            loop = false
+        for k in pairs(FarmingLoops) do
+            FarmingLoops[k] = false
         end
         if originalHook then
             hookmetamethod(game, "__namecall", originalHook)
@@ -549,4 +483,4 @@ Tabs.Settings:AddButton({
 -- Initialize
 LoadConfig()
 OrionLib:Init()
-Notify("VortX Hub V1.6.0", "Loaded successfully! Enjoy the game.", 5)
+Notify("VortX Hub V1.7.0", "Loaded successfully! Enjoy the game.", 5)
